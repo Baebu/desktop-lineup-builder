@@ -1,0 +1,5 @@
+dearpygui
+discord.py
+pyyaml
+watchdog
+Pillow
