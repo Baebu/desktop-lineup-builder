@@ -11,6 +11,8 @@ from ..ui.toast import show_toast
 
 class EventsMixin:
     """Manages saved event lineups: save, load, delete, duplicate, and UI refresh."""
+    
+    _saved_events_drawer_open = False
 
     def _get_full_title(self, title: str, vol: str) -> str:
         vol_prefix = getattr(self, "settings", {}).get("vol_prefix", " VOL.")
@@ -35,10 +37,14 @@ class EventsMixin:
         }
 
         for slot in self.slots:
+            try:
+                dur = int(slot.duration_var.get())
+            except (ValueError, TypeError):
+                dur = 60
             event_data["slots"].append({
                 "name": slot.name_var.get().strip(),
                 "genre": slot.genre_var.get().strip(),
-                "duration": slot.duration_var.get()
+                "duration": dur
             })
         return event_data
 
@@ -270,15 +276,21 @@ class EventsMixin:
             self.slots.clear()
 
             for slot_data in event_data.get("slots",[]):
+                try:
+                    dur = int(slot_data.get("duration", 60))
+                except (ValueError, TypeError):
+                    dur = 60
                 self.add_slot(
                     slot_data.get("name", ""),
                     slot_data.get("genre", ""),
-                    int(slot_data.get("duration", 60))
+                    dur,
+                    refresh=False
                 )
 
             if dpg.does_item_exist("left_tabs"):
                 dpg.set_value("left_tabs", "Event")
                 
+            self.refresh_slots()
             self.update_output()
             self._current_event_key = (event_data.get("title", ""), event_data.get("vol", ""))
             
@@ -418,69 +430,68 @@ class EventsMixin:
         else:
             _do_dupe()
 
-    def open_saved_events_modal(self):
-        """Open a centered modal displaying all saved events."""
-        win_tag = "saved_events_modal"
-        if dpg.does_item_exist(win_tag):
-            dpg.delete_item(win_tag)
-            
-        vp_w = dpg.get_viewport_width()
-        vp_h = dpg.get_viewport_height()
-        modal_w = 480
-        modal_h = 500
-        pos = [max(0, (vp_w - modal_w) // 2), max(0, (vp_h - modal_h) // 2)]
-        
-        with dpg.window(tag=win_tag, label="Saved Events", modal=True,
-                        width=modal_w, height=modal_h, no_resize=True,
-                        pos=pos, no_scrollbar=True):
-            with dpg.child_window(tag="saved_events_scroll", height=-35, border=False):
-                pass
-            dpg.add_spacer(height=4)
-            with dpg.group(horizontal=True):
-                dpg.add_spacer(width=modal_w - 100)
-                dpg.add_button(label="Close", width=80, callback=lambda: dpg.delete_item(win_tag))
-                
-        self.refresh_saved_events_ui()
+    def _toggle_saved_events_drawer(self):
+        """Toggle the saved events drawer open/closed."""
+        self._saved_events_drawer_open = not self._saved_events_drawer_open
+        self._section_collapsed["saved_events"] = not self._saved_events_drawer_open
+        show = self._saved_events_drawer_open
+        # Toggle both the table row and the inner drawer child
+        if dpg.does_item_exist("saved_events_drawer_row"):
+            dpg.configure_item("saved_events_drawer_row", show=show)
+        if dpg.does_item_exist("saved_events_drawer"):
+            dpg.configure_item("saved_events_drawer", show=show)
+        # Update button icon
+        btn_tag = "saved_events_btn"
+        icon = "\u25ba" if not show else "\u25bc"
+        if dpg.does_item_exist(btn_tag):
+            dpg.set_item_label(btn_tag, f"  {icon}  SAVED EVENTS")
+        if show:
+            self.refresh_saved_events_ui()
 
     def refresh_saved_events_ui(self):
-        if not dpg.does_item_exist("saved_events_scroll"):
+        if not dpg.does_item_exist("saved_events_drawer_content"):
             return
-        dpg.delete_item("saved_events_scroll", children_only=True)
+        dpg.delete_item("saved_events_drawer_content", children_only=True)
         if not self.saved_events:
-            styled_text("No saved events yet.",
-                         LABEL, parent="saved_events_scroll")
+            with dpg.group(parent="saved_events_drawer_content"):
+                dpg.add_spacer(height=6)
+                styled_text("No saved events yet.", LABEL)
+                dpg.add_spacer(height=6)
             return
+
         for ev in self.saved_events:
             full_title = self._get_full_title(ev['title'], ev.get('vol', ''))
             slots_count = len(ev.get("slots",[]))
             timestamp = ev.get("timestamp", "")
-            
+
             # Matches the DJ roster card look (1x1 table for border)
-            with dpg.group(parent="saved_events_scroll"):
-                with dpg.table(header_row=False, borders_innerH=False, borders_innerV=False, 
+            with dpg.group(parent="saved_events_drawer_content"):
+                dpg.add_spacer(height=4)
+                with dpg.table(header_row=False, borders_innerH=False, borders_innerV=False,
                                borders_outerH=True, borders_outerV=True, pad_outerX=True, width=-6):
                     dpg.add_table_column()
                     with dpg.table_row():
-                        with dpg.group():
-                            with dpg.table(header_row=False, borders_innerH=False, borders_innerV=False, borders_outerH=False, borders_outerV=False, pad_outerX=False):
-                                dpg.add_table_column(width_stretch=True)
-                                dpg.add_table_column(width_fixed=True)
-                                with dpg.table_row():
-                                    with dpg.group():
-                                        styled_text(full_title, BODY)
-                                        styled_text(f"{timestamp}  |  {slots_count} slots", MUTED)
-                                    with dpg.group(horizontal=True):
-                                        def _load(s, a, u):
-                                            if dpg.does_item_exist("saved_events_modal"):
-                                                dpg.delete_item("saved_events_modal")
-                                            self.load_event_lineup(u)
-                                            
-                                        def _dupe(s, a, u):
-                                            if dpg.does_item_exist("saved_events_modal"):
-                                                dpg.delete_item("saved_events_modal")
-                                            self.duplicate_event_lineup(u)
-                                            
-                                        add_icon_button(Icon.DOWNLOAD, width=28, height=20, user_data=ev, callback=_load)
-                                        add_icon_button(Icon.COPY, width=28, height=20, user_data=ev, callback=_dupe)
-                                        add_icon_button(Icon.DELETE, width=28, height=20, is_danger=True, user_data=ev, callback=lambda s, a, u: self.delete_event_lineup(u))
-                dpg.add_spacer(height=3)
+                        with dpg.table(header_row=False, borders_innerH=False, borders_innerV=False,
+                                       borders_outerH=False, borders_outerV=False, pad_outerX=False):
+                            dpg.add_table_column(width_stretch=True)
+                            dpg.add_table_column(width_fixed=True)
+                            with dpg.table_row():
+                                with dpg.group():
+                                    styled_text(full_title, BODY)
+                                    styled_text(f"{timestamp}  |  {slots_count} slots", MUTED)
+                                with dpg.group(horizontal=True):
+                                    def _load(s, a, u):
+                                        if dpg.does_item_exist("saved_events_drawer"):
+                                            dpg.configure_item("saved_events_drawer", show=False)
+                                        self._saved_events_drawer_open = False
+                                        self.load_event_lineup(u)
+
+                                    def _dupe(s, a, u):
+                                        if dpg.does_item_exist("saved_events_drawer"):
+                                            dpg.configure_item("saved_events_drawer", show=False)
+                                        self._saved_events_drawer_open = False
+                                        self.duplicate_event_lineup(u)
+
+                                    add_icon_button(Icon.DOWNLOAD, width=28, height=20, user_data=ev, callback=_load)
+                                    add_icon_button(Icon.COPY, width=28, height=20, user_data=ev, callback=_dupe)
+                                    add_icon_button(Icon.DELETE, width=28, height=20, is_danger=True, user_data=ev, callback=lambda s, a, u: self.delete_event_lineup(u))

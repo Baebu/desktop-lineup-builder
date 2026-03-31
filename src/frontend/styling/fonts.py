@@ -39,7 +39,7 @@ class Icon:
     CODE     = "\ue86f"   # code
     HEADSET  = "\ue310"   # headset
     SETTINGS = "\ue8b8"   # settings
-    VR       = "\ue3c7"   # vrpano
+    VR       = "\uf4c5"   # vrpano
     SCHEDULE = "\ue8b5"   # schedule
     TUNE     = "\ue429"   # tune
     PASTE    = "\ue14f"   # content_paste

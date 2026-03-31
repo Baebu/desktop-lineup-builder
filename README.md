@@ -13,7 +13,7 @@ Built with a **mixin-composition architecture**: the entire backend is pure Pyth
 | **Output Formats** | Real-time preview: Discord (markdown embeds), Local (plain text), Quest (HLS links), PC (RTSP links) |
 | **Discord Bot** | Post lineups as rich embeds with auto-computed times, schedule posts for future delivery, image attachment |
 | **Themes** | 8 built-in presets + unlimited custom presets, Windows title bar coloring (Win10/11), persistent preferences |
-| **Reliability** | Auto-save every 5 sec, crash recovery, window/panel geometry persistence, YAML-backed event/library storage |
+| **Reliability** | Auto-save every 5 sec, crash recovery, window/panel geometry persistence, single-file SQLite database storage |
 
 ---
 
@@ -32,7 +32,7 @@ Built with a **mixin-composition architecture**: the entire backend is pure Pyth
 |-------|-----------|---------|
 | **GUI Framework** | DearPyGui 1.11+ | Immediate-mode vector renderer, low-level widget control |
 | **Discord Integration** | discord.py 2.3+ | Bot client for posting, OAuth2 for user login |
-| **Data Serialization** | PyYAML 6.0+ | Event/library YAML storage; JSON for settings |
+| **Data Storage** | SQLite3 (Built-in) | Single-file local database (`lineup_builder.db`) |
 | **Image Processing** | Pillow 10+ | Load images for embed attachments |
 | **File Watching** | watchdog 3.0+ | Auto-restart dev server on code changes |
 | **HTTP Client** | httpx (optional) | REST calls to backend API |
@@ -43,21 +43,23 @@ Built with a **mixin-composition architecture**: the entire backend is pure Pyth
 
 ### Mixin-Composition Design
 
-The `App` class multiplies inherits **11 functional mixins**, each responsible for a distinct feature area:
+The `App` class multiply inherits **13 functional mixins**, each responsible for a distinct feature area:
 
 | # | Mixin | File | Responsibility |
 |---|-------|------|---|
-| 1 | `UISetupMixin` | `ui/init.py` | DPG viewport, left/right panels, tabs, all widget construction, scroll/arrow-key handlers |
+| 1 | `UISetupMixin` | `ui/init.py` | DPG viewport, left/right panels, tabs, all widget construction |
 | 2 | `RosterMixin` | `mixins/roster.py` | DJ roster CRUD, bulk link import, drag payload creation |
 | 3 | `DragDropMixin` | `mixins/drag_drop.py` | Slot reordering, DJ-card→slot drop targets, flash highlight |
-| 4 | `EventsMixin` | `mixins/events_manager.py` | Save/load/delete/duplicate event lineups (YAML-backed) |
+| 4 | `EventsMixin` | `mixins/events_manager.py` | Save/load/delete/duplicate event lineups |
 | 5 | `GenreMixin` | `mixins/genre_manager.py` | Genre tag add/delete/toggle, active-genre filtering |
 | 6 | `SlotMixin` | `mixins/slot_manager.py` | Slot CRUD, reorder, apply master duration |
 | 7 | `OutputMixin` | `backend/output/output_builder.py` | `_build_snapshot()` → `EventSnapshot`; `update_output()` drives preview |
-| 8 | `DataMixin` | `backend/data_manager.py` | YAML/JSON I/O, window geometry persistence, crash-recovery auto-save |
+| 8 | `DataMixin` | `backend/data_manager.py` | SQLite I/O, cloud sync, window geometry persistence |
 | 9 | `SettingsMixin` | `mixins/settings_manager.py` | `load_settings()`, `apply_theme()`, preset management |
-| 10 | `DebounceMixin` | `backend/debounce.py` | Timer helpers + per-frame work queue (`process_queue()`) |
-| 11 | `ImportMixin` | `mixins/import_parser.py` | `_parse_event_text()` for Discord markdown and plain-text formats |
+| 10 | `SectionsMixin` | `mixins/sections.py` | Collapsible UI section management for left-panel tabs |
+| 11 | `DebounceMixin` | `backend/debounce.py` | Timer helpers + per-frame work queue (`process_queue()`) |
+| 12 | `ImportMixin` | `mixins/import_parser.py` | `_parse_event_text()` for Discord markdown and plain-text formats |
+| 13 | `KeyboardMixin` | `mixins/keyboard_handler.py` | Global keyboard shortcuts (Ctrl+S, Ctrl+N, etc.) |
 
 **Golden rule:** `src/backend/` is **100% GUI-free**. No DearPyGui imports. Tests run against backend only.
 
@@ -87,11 +89,12 @@ desktop/
 │       ├── types.py                 # TypeVar, generic types used across frontend
 │       ├── utils.py                 # get_data_dir(), get_icon_path()
 │       │
-│       ├── mixins/                  # 11 functional mixins (see table above)
+│       ├── mixins/                  # 13 functional mixins (see table above)
 │       │   ├── drag_drop.py         # Drag-and-drop slot reorder, DJ drop targets
 │       │   ├── events_manager.py    # Save/load/delete/duplicate event lineups
 │       │   ├── genre_manager.py     # Genre CRUD, filtering, tag management
 │       │   ├── import_parser.py     # Parse Discord/plain-text event imports
+│       │   ├── keyboard_handler.py  # Global keyboard shortcuts
 │       │   ├── roster.py            # DJ roster sidebar, CRUD, link import
 │       │   ├── sections.py          # Persistent sections (top panel, etc.)
 │       │   ├── settings_manager.py  # Theme selection, preset save/load
@@ -120,7 +123,8 @@ desktop/
 │           └── __init__.py
 │
 │   └── backend/                     # Pure Python — ZERO DearPyGui imports
-│       ├── data_manager.py          # DataMixin: YAML/JSON file I/O
+│       ├── database.py              # Database: Single-file SQLite storage
+│       ├── data_manager.py          # DataMixin: SQLite I/O and Cloud Sync
 │       ├── debounce.py              # DebounceMixin: timers + frame work queue
 │       │
 │       ├── models/
@@ -144,11 +148,7 @@ desktop/
 ├── build/                           # PyInstaller build artifacts (gitignored)
 ├── dist/                            # dist/LineupBuilder.exe (gitignored)
 │
-├── lineup_events.yaml               # Saved event lineups (user data)
-├── lineup_library.yaml              # DJ roster + genre library (user data)
-├── settings.json                    # Theme colors, UI prefs (user data)
-├── window_state.json                # Window geometry, panel widths (user data)
-├── auto_save.json                   # Crash-recovery transient state (user data)
+├── lineup_builder.db                # SQLite database containing ALL user data
 │
 └── README.md (this file)
 ```
@@ -284,6 +284,8 @@ Real-time side-by-side previews for all output formats:
 
 | Input | Action |
 |-------|--------|
+| **Ctrl + S** | Save current event lineup |
+| **Ctrl + N** | Start a new event lineup |
 | **↑ / ↓** on timestamp field | Shift event time ±15 minutes |
 | **Shift + ↑ / ↓** on timestamp field | Shift event time ±24 hours |
 | **Mouse wheel** on combo / duration spinners | Cycle values up or down |
@@ -354,17 +356,12 @@ pytest tests/ --cov=src/backend/ --cov-report=html
 
 ## Data Files
 
-All data files live in the application directory (resolved by `get_data_dir()`):
+All application data is securely stored in a single SQLite database file (`lineup_builder.db`) located in the application directory (resolved by `get_data_dir()`):
 - **During development:** Project root (`desktop/`)
 - **After PyInstaller build:** Executable's directory
 
-| File | Format | Contents | Auto-Save? |
-|------|--------|----------|-----------|
-| `lineup_library.yaml` | YAML | DJ roster, genre library, saved titles | Every 500ms |
-| `lineup_events.yaml` | YAML | Named event lineups (save/load history) | On save only |
-| `settings.json` | JSON | Theme colors, UI scale, user presets, OAuth token | On change |
-| `window_state.json` | JSON | Window geometry, panel widths | On window close |
-| `auto_save.json` | JSON | Transient lineup state for crash recovery | Every 5 sec |
+### Legacy Migration
+If you are upgrading from an older version of Lineup Builder, the app will automatically detect your old `.yaml` and `.json` files on launch, securely migrate all your data into the new SQLite database, and rename the old files to `*.migrated` to prevent conflicts.
 
 ---
 
@@ -451,11 +448,14 @@ All timer work goes through `DebounceMixin` and a work queue (`self._work_queue`
 - `_build_snapshot()` — capture current editor state
 - `update_output()` — refresh preview panel
 
+**database.py**
+- `Database` — Single-file SQLite storage engine
+- Thread-safe connection management and table initialization
+- Handles automatic migration from legacy YAML/JSON files
+
 **data_manager.py**
-- `DataMixin` — YAML/JSON file I/O
-- Load/save `/lineup_library.yaml`, `/lineup_events.yaml`
-- Persist window geometry to `/window_state.json`
-- Auto-save to `/auto_save.json` for crash recovery
+- `DataMixin` — Bridges the UI with the `Database`
+- Handles local SQLite reads/writes and background cloud synchronization
 
 **debounce.py**
 - `DebounceMixin` — timer helpers + work queue
@@ -579,72 +579,29 @@ def test_compute_slot_times():
 **Solution:** All modals should be created *after* `apply_theme()` in `App.__init__()`. Global theme inheritance is automatic.
 
 ### Issue: Auto-save not restoring
-**Cause:** `auto_save.json` corrupted or missing  
-**Solution:** Delete `auto_save.json` and restart app. Non-recoverable data is still in `lineup_events.yaml` and `lineup_library.yaml`.
+**Cause:** Transient auto-save data missing from database.  
+**Solution:** This typically only happens on a clean install or if the database was manually cleared. Non-recoverable data is still safely stored in your saved events.
 
 ### Issue: PyInstaller build fails
 **Cause:** Missing hidden imports or DearPyGui not properly detected  
 **Solution:** Ensure `lineup_builder.spec` includes DearPyGui in `hiddenimports`. Try: `pip install --upgrade dearpygui pyinstaller`
 
-### Issue: Yaml file corrupted, app won't load
-**Cause:** Manual edit of YAML or unexpected shutdown mid-write  
-**Solution:** Rename corrupted file (e.g., `lineup_library.yaml.bak`). App creates fresh file on next launch.
+### Issue: Database locked error
+**Cause:** Multiple instances of the app trying to write to `lineup_builder.db` simultaneously.  
+**Solution:** Ensure only one instance of Lineup Builder is running at a time.
 
 ---
 
-## File Format Reference
+## Database Schema Reference
 
-### lineup_library.yaml
-```yaml
-version: "1.0"
-djs:
-  - name: "DJ A"
-    stream: "https://twitch.tv/dja"
-    exact_link: false
-    genres: ["House", "Techno"]
-genres: ["House", "Techno", "Drum & Bass"]
-saved_titles: ["New Year Bash", "Summer Party"]
-```
+All data is stored in `lineup_builder.db` using the following core tables:
 
-### lineup_events.yaml
-```yaml
-version: "1.0"
-events:
-  - name: "Spring Finale"
-    title: "Spring Finale"
-    vol: "2"
-    timestamp: "2026-04-15 22:00"
-    slots:
-      - name: "DJ A"
-        genre: "House"
-        duration: 60
-    genres: ["House"]
-    output_format: "discord"
-    saved_at: "2026-03-16T15:30:00"
-```
-
-### settings.json
-```json
-{
-  "theme_name": "Slate",
-  "colors": {
-    "panel_bg": "#160D2E",
-    "card_bg": "#09051A",
-    ...
-  },
-  "ui_scale": 1.0,
-  "user_presets": [
-    {
-      "name": "My Custom Theme",
-      "colors": { ... }
-    }
-  ],
-  "discord_oauth": {
-    "access_token": "...",
-    "expires_at": 1234567890
-  }
-}
-```
+- **`kv`**: Key-Value store holding JSON blobs for `settings`, `window_state`, and `auto_save`.
+- **`djs`**: DJ roster (`id`, `name`, `stream`, `exact_link`).
+- **`genres`**: Global genre library.
+- **`events`**: Saved event metadata (`title`, `vol`, `timestamp`, `social_links`, etc.).
+- **`event_slots`**: Foreign-keyed to `events`, holding individual slot data (`position`, `name`, `genre`, `duration`).
+- **`event_genres`**: Foreign-keyed to `events`, holding active genres for that specific event.
 
 ---
 
@@ -685,7 +642,7 @@ See [LICENSE](../LICENSE) at project root.
 ---
 
 **Last Updated:** 2026-03-16  
-**Version:** 1.0.0
+**Version:** 1.2.0
 **Maintainer:** Baebu
 
 ## Theme System

@@ -360,10 +360,15 @@ class ImportMixin:
         self.slots.clear()
 
         for slot_data in parsed.get("slots",[]):
+            try:
+                dur = int(slot_data.get("duration", 60))
+            except (ValueError, TypeError):
+                dur = 60
             self.add_slot(
                 slot_data.get("name", ""),
                 slot_data.get("genre", ""),
-                int(slot_data.get("duration", 60)),
+                dur,
+                refresh=False
             )
 
         # Save new DJs to roster (preserve existing entries that already have links)
@@ -385,4 +390,6 @@ class ImportMixin:
 
         if dpg.does_item_exist("left_tabs"):
             dpg.set_value("left_tabs", "Event")
+            
+        self.refresh_slots()
         self.update_output()

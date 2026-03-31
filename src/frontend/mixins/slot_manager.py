@@ -18,7 +18,7 @@ class SlotMixin:
                 pass
         return 60
 
-    def add_slot(self, name: str = "", genre: str = "", duration: int | None = None, index: int | None = None):
+    def add_slot(self, name: str = "", genre: str = "", duration: int | None = None, index: int | None = None, refresh: bool = True):
         if duration is None:
             duration = self._last_slot_duration()
         slot = SlotState(name, genre, duration)
@@ -28,8 +28,9 @@ class SlotMixin:
         else:
             self.slots.append(slot)
             
-        self.refresh_slots()
-        self.update_output()
+        if refresh:
+            self.refresh_slots()
+            self.update_output()
         return slot
 
     def refresh_slots(self):

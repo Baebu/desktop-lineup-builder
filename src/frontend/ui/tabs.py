@@ -30,8 +30,7 @@ class TabsBuilderMixin:
         with dpg.child_window(tag="event_tab_inner", border=False,
                               autosize_x=True, height=-1):
             self._build_event_header()
-            dpg.add_separator()
-            
+
             self._build_details_section()
             self._build_genres_section()
             self._build_links_section()
@@ -51,11 +50,58 @@ class TabsBuilderMixin:
                                callback=lambda: self.new_event())
                 add_success_button("Save", tag="save_event_btn", width=-1,
                                    callback=lambda: self.save_event_lineup())
-        dpg.add_spacer(height=2)
-        add_primary_button("Saved Events", width=-1, callback=lambda: self.open_saved_events_modal())
-        dpg.add_spacer(height=2)
+
+    def _build_saved_events_section(self):
+        """Build the saved events button and drawer wrapped in a bordered container (matching section style)."""
+        with dpg.table(
+            header_row=False,
+            borders_outerH=True,
+            borders_outerV=True,
+            borders_innerH=False,
+            borders_innerV=False,
+            pad_outerX=False,
+            width=-6,
+        ):
+            dpg.add_table_column()
+            # Row 1: The button (always visible)
+            with dpg.table_row():
+                with dpg.theme() as header_row_theme:
+                    with dpg.theme_component(dpg.mvTable):
+                        dpg.add_theme_style(dpg.mvStyleVar_CellPadding, 0, 0)
+                dpg.bind_item_theme(dpg.last_item(), header_row_theme)
+
+                collapsed = self._section_collapsed.get("saved_events", False)
+                icon = "\u25ba" if collapsed else "\u25bc"
+                saved_events_btn = dpg.add_button(
+                    label=f"  {icon}  SAVED EVENTS",
+                    tag="saved_events_btn",
+                    width=-1,
+                    height=28,
+                    callback=lambda: self._toggle_saved_events_drawer()
+                )
+                dpg.bind_item_theme(saved_events_btn, "section_btn_theme")
+
+            # Row 2: The drawer content (toggled)
+            with dpg.table_row(tag="saved_events_drawer_row", show=False):
+                with dpg.child_window(
+                    tag="saved_events_drawer",
+                    height=200,
+                    border=False,
+                    show=False,
+                ):
+                    with dpg.child_window(
+                        tag="saved_events_drawer_content",
+                        height=-1,
+                        border=False,
+                        autosize_x=True,
+                    ):
+                        pass
+        dpg.add_spacer(height=4)
 
     def _build_details_section(self):
+        # Saved Events section (above the DETAILS section)
+        self._build_saved_events_section()
+        
         with section(self, "evt_config", "DETAILS"):
             with dpg.group():
                 styled_text("TITLE", LABEL)

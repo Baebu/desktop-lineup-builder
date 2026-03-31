@@ -147,10 +147,10 @@ class LayoutBuilderMixin:
                     dpg.add_table_column()
                     dpg.add_table_column()
                     with dpg.table_row():
-                        dpg.add_button(tag="refresh_output_btn", label="Refresh", width=-1,
-                                       callback=lambda: self.update_output())
-                        add_primary_button("Copy", tag="copy_output_btn", width=-1, 
-                                           callback=lambda: self._copy_output())
+                        add_icon_button(Icon.REFRESH, tag="refresh_output_btn", width=-1,
+                                        callback=lambda: self.update_output())
+                        add_icon_button(Icon.COPY, tag="copy_output_btn", width=-1,
+                                        callback=lambda: self._copy_output())
 
             with dpg.tab(label="VISUAL PREVIEW", tag="output_tab_visual"):
                 with dpg.child_window(tag="visual_preview_scroll", height=-1, border=True, autosize_x=True):
