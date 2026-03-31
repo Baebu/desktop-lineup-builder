@@ -73,6 +73,22 @@ def _show_suggestions(slot: SlotState, items: list):
         dpg.show_item(suggest_tag)
 
 
+def _navigate_suggestion(slot: SlotState, app, list_tag: str, direction: int):
+    """Navigate the suggestion list with arrow keys by updating the selected index."""
+    if not dpg.does_item_exist(list_tag):
+        return
+    items = dpg.get_value(list_tag)
+    if not items:
+        return
+    current = dpg.get_item_configuration(list_tag).get("default_value", "")
+    try:
+        idx = items.index(current) if current in items else -1
+    except (ValueError, KeyError):
+        idx = -1
+    new_idx = (idx + direction) % len(items)
+    dpg.set_value(list_tag, items[new_idx])
+
+
 def _copy_slot_link(sender, app_data, user_data):
     slot, app, fmt = user_data
     name = slot.name_var.get().strip()
@@ -268,14 +284,17 @@ def build_slot_row(slot: SlotState, app, parent_tag: str):
                     dpg.delete_item(suggest_grp)
                     
                 with dpg.group(tag=suggest_grp, show=False):
-                    dpg.add_listbox(
-                        tag=f"slot_suggest_list_{sid}",
-                        items=[],
-                        width=175,
-                        num_items=4,
-                        user_data=slot,
-                        callback=lambda s, a, u: _select_dj_suggestion(u, app),
-                    )
+                    with dpg.group(horizontal=True):
+                        dpg.add_spacer(width=4)
+                        dpg.add_listbox(
+                            tag=f"slot_suggest_list_{sid}",
+                            items=[],
+                            width=140,
+                            num_items=4,
+                            user_data=slot,
+                            callback=lambda s, a, u: _select_dj_suggestion(u, app),
+                        )
+                    
                 dpg.add_spacer(height=2)
 
     _update_slot_info(slot, app)
