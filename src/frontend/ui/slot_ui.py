@@ -63,8 +63,10 @@ def _show_suggestions(slot: SlotState, items: list):
     # Align suggestion list with the name input
     if dpg.does_item_exist(name_tag) and dpg.does_item_exist(suggest_tag):
         name_pos = dpg.get_item_pos(name_tag)
-        row_pos = dpg.get_item_pos(slot.row_tag) if slot.row_tag and dpg.does_item_exist(slot.row_tag) else[0, 0]
-        indent = max(0, name_pos[0] - row_pos[0])
+        row_pos = dpg.get_item_pos(slot.row_tag) if slot.row_tag and dpg.does_item_exist(slot.row_tag) else [0, 0]
+        # row_pos[0] is the table's X. Cell content starts at row_pos[0] + 6 (CELL_PAD_X).
+        # To align the listbox exactly with the input text, we indent by the difference.
+        indent = max(0, name_pos[0] - (row_pos[0] + 6))
         dpg.configure_item(suggest_tag, indent=int(indent))
     if dpg.does_item_exist(list_tag):
         w = dpg.get_item_width(name_tag) if dpg.does_item_exist(name_tag) else 175
@@ -251,16 +253,14 @@ def build_slot_row(slot: SlotState, app, parent_tag: str):
                     dpg.delete_item(suggest_grp)
                     
                 with dpg.group(tag=suggest_grp, show=False):
-                    with dpg.group(horizontal=True):
-                        dpg.add_spacer(width=4)
-                        dpg.add_listbox(
-                            tag=f"slot_suggest_list_{sid}",
-                            items=[],
-                            width=140,
-                            num_items=4,
-                            user_data=slot,
-                            callback=lambda s, a, u: _select_dj_suggestion(u, app),
-                        )
+                    dpg.add_listbox(
+                        tag=f"slot_suggest_list_{sid}",
+                        items=[],
+                        width=140,
+                        num_items=4,
+                        user_data=slot,
+                        callback=lambda s, a, u: _select_dj_suggestion(u, app),
+                    )
                     
                 dpg.add_spacer(height=2)
 
