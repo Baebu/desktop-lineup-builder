@@ -59,6 +59,10 @@ def open_datetime_picker(var, callback=None):
         dpg.delete_item("dt_picker_key_hr")
     if dpg.does_item_exist("dt_picker_wheel_hr"):
         dpg.delete_item("dt_picker_wheel_hr")
+    if dpg.does_item_exist("dt_hour_hover_hr"):
+        dpg.delete_item("dt_hour_hover_hr")
+    if dpg.does_item_exist("dt_min_hover_hr"):
+        dpg.delete_item("dt_min_hover_hr")
 
     state = {
         "view_year": current_dt.year,
