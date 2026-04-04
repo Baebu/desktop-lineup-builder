@@ -1,6 +1,6 @@
 import dearpygui.dearpygui as dpg
 
-from ..ui.slot_ui import SlotState, build_slot_row, build_add_slot_row, build_drop_gap
+from ..ui.slot_ui import SlotState, build_slot_row, build_add_slot_row
 
 
 class SlotMixin:
@@ -46,16 +46,10 @@ class SlotMixin:
         # as it ensures no orphaned drop gaps or placeholders remain to block clicks.
         dpg.delete_item(parent, children_only=True)
             
-        # Recreate in current order with gaps
-        for i, slot in enumerate(self.slots):
-            # Gap before the slot
-            build_drop_gap(self, i, parent)
-            # The slot itself
+        # Recreate in current order
+        for slot in self.slots:
             build_slot_row(slot, self, parent)
-            
-        # Add the final drop gap at the very bottom
-        build_drop_gap(self, len(self.slots), parent)
-        
+
         # Add the '+ Add DJ Slot' button row
         build_add_slot_row(self, parent)
 
