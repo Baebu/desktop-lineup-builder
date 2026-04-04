@@ -442,7 +442,7 @@ class EventsMixin:
             dpg.configure_item("saved_events_drawer", show=show)
         # Update button icon
         btn_tag = "saved_events_btn"
-        icon = "\u25ba" if not show else "\u25bc"
+        icon = "\u25bc" if show else "\u25ba"
         if dpg.does_item_exist(btn_tag):
             dpg.set_item_label(btn_tag, f"  {icon}  SAVED EVENTS")
         if show:

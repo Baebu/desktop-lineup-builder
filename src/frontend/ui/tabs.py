@@ -14,6 +14,7 @@ class TabsBuilderMixin:
     _VRC_FIELDS =[
         ("TIMELINE",   "https://vrc.tl/event/"),
         ("VRCPOP",     "https://vrcpop.com/event/"),
+        ("VRC EVENT",  "https://vrchat.com/home/group/.../calendar/"),
     ]
 
     _SOCIAL_FIELDS =[
@@ -70,7 +71,7 @@ class TabsBuilderMixin:
                         dpg.add_theme_style(dpg.mvStyleVar_CellPadding, 0, 0)
                 dpg.bind_item_theme(dpg.last_item(), header_row_theme)
 
-                collapsed = self._section_collapsed.get("saved_events", False)
+                collapsed = self._section_collapsed.get("saved_events", True)
                 icon = "\u25ba" if collapsed else "\u25bc"
                 saved_events_btn = dpg.add_button(
                     label=f"  {icon}  SAVED EVENTS",

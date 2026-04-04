@@ -136,7 +136,7 @@ class OutputGenerator:
             ptr += datetime.timedelta(minutes=slot.duration)
 
         # Social links (bottom of lineup)
-        _LINK_ORDER = ["TIMELINE", "VRCPOP", "X", "IG", "DISCORD", "VRC GROUP"]
+        _LINK_ORDER = ["TIMELINE", "VRCPOP", "VRC EVENT", "X", "IG", "DISCORD", "VRC GROUP"]
         if snap.social_links:
             parts = [
                 f"[{label}]({snap.social_links[label]})"
@@ -198,7 +198,7 @@ class OutputGenerator:
             ptr += datetime.timedelta(minutes=slot.duration)
 
         # Social links (bottom of lineup)
-        _LINK_ORDER =["TIMELINE", "VRCPOP", "X", "IG", "DISCORD", "VRC GROUP"]
+        _LINK_ORDER =["TIMELINE", "VRCPOP", "VRC EVENT", "X", "IG", "DISCORD", "VRC GROUP"]
         if snap.social_links:
             parts =[
                 f"{label}: {snap.social_links[label]}"
