@@ -147,12 +147,48 @@ def build_drop_gap(app, index: int, parent_tag: str):
     
     with dpg.child_window(
         tag=tag, parent=parent_tag,
-        width=-1, height=8, border=False,
+        width=-1, height=16, border=False,
         no_scrollbar=True, no_scroll_with_mouse=True,
         payload_type="DJ_CARD",
         drop_callback=lambda s, a, idx=index: app._drop_on_gap(s, a, idx)
     ):
         pass
+
+
+def _on_drop_on_slot(target_slot: SlotState, app_data, app):
+    """Handle a payload dropped directly onto a slot row.
+
+    - slot_reorder tuple  → move the dragged slot to just before this slot
+    - str (DJ name)       → replace the DJ name in this slot
+    """
+    if not app_data:
+        return
+
+    if isinstance(app_data, (tuple, list)) and len(app_data) == 2 and app_data[0] == "slot_reorder":
+        src_id = app_data[1]
+        if src_id == target_slot._id:
+            return
+        src_idx = next((i for i, s in enumerate(app.slots) if s._id == src_id), None)
+        if src_idx is None:
+            return
+        dragged = app.slots.pop(src_idx)
+        # Recalculate target index after the pop
+        tgt_idx = next((i for i, s in enumerate(app.slots) if s._id == target_slot._id), None)
+        if tgt_idx is None:
+            app.slots.append(dragged)
+        else:
+            app.slots.insert(tgt_idx, dragged)
+        app.refresh_slots()
+        app.update_output()
+        app._flash_slot(dragged)
+
+    elif isinstance(app_data, str):
+        # Replace the DJ name in this slot with the dropped DJ name
+        target_slot.name_var.set(app_data)
+        if dpg.does_item_exist(f"slot_name_{target_slot._id}"):
+            dpg.set_value(f"slot_name_{target_slot._id}", app_data)
+        app.refresh_slots()
+        app.update_output()
 
 
 def build_slot_row(slot: SlotState, app, parent_tag: str):
@@ -167,8 +203,8 @@ def build_slot_row(slot: SlotState, app, parent_tag: str):
         dur_vals.sort(key=int)
 
     # ── Bordered Card using a 1x1 Table ──
-    with dpg.table(tag=row_tag, parent=parent_tag, header_row=False, 
-                   borders_outerH=True, borders_outerV=True, 
+    with dpg.table(tag=row_tag, parent=parent_tag, header_row=False,
+                   borders_outerH=True, borders_outerV=True,
                    borders_innerH=False, borders_innerV=False,
                    pad_outerX=True, width=-6):
         dpg.add_table_column()
@@ -177,14 +213,17 @@ def build_slot_row(slot: SlotState, app, parent_tag: str):
                 dpg.add_spacer(height=2)
                 with dpg.group(horizontal=True):
                     dpg.add_spacer(width=4)
-                    _drag_txt = styled_text(
+                    # Drag handle: a real button so it properly receives mouse-down
+                    # events to initiate the drag, AND can receive drops from other
+                    # slots (payload_type + drop_callback) without blocking the
+                    # buttons elsewhere in the card.
+                    _drag_btn = add_icon_button(
                         Icon.DRAG,
-                        MUTED,
+                        width=20, height=20,
+                        payload_type="DJ_CARD",
+                        drop_callback=lambda s, a, u=slot: _on_drop_on_slot(u, a, app),
                     )
-                    bind_icon_font(_drag_txt)
-                    
-                    # Drag payload isolated to the drag handle icon
-                    with dpg.drag_payload(parent=_drag_txt, drag_data=("slot_reorder", sid), payload_type="DJ_CARD"):
+                    with dpg.drag_payload(parent=_drag_btn, drag_data=("slot_reorder", sid), payload_type="DJ_CARD"):
                         name_preview = slot.name_var.get() or "(empty)"
                         with dpg.group(horizontal=True):
                             t = styled_text(Icon.DRAG, HEADER)

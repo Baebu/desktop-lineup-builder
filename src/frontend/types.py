@@ -70,7 +70,7 @@ class SlotState:
         self.name_var     = DPGVar(default=name)
         self.genre_var    = DPGVar(default=genre)
         self.duration_var = DPGVar(default=str(duration))
-        self.row_tag      = None  # set by build_slot_row
+        self.row_tag: str | None = None  # set by build_slot_row
 
     def destroy(self):
         """Remove the DPG widgets for this slot."""
