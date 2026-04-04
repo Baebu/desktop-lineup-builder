@@ -10,8 +10,9 @@ Built with a **mixin-composition architecture**: the entire backend is pure Pyth
 |----------|-----------|
 | **Lineup Creation** | Smart event header (title, vol #), date/time picker, auto-import from Discord/text, drag-to-reorder slots, genre tagging |
 | **DJ Roster** | Persistent roster with stream links (VRCDN, Twitch, YouTube, etc.), exact-link mode, drag-and-drop into slots |
-| **Output Formats** | Real-time preview: Discord (markdown embeds), Local (plain text), Quest (HLS links), PC (RTSP links) |
+| **Output Formats** | Real-time text preview, rich visual Discord embed mockup, Local (plain text), Quest (HLS links), PC (RTSP links) |
 | **Discord Bot** | Post lineups as rich embeds with auto-computed times, schedule posts for future delivery, image attachment |
+| **Cloud Sync** | Sign in via Discord OAuth2 to automatically sync your library and events to the cloud, or remain in Local Mode |
 | **Themes** | 8 built-in presets + unlimited custom presets, Windows title bar coloring (Win10/11), persistent preferences |
 | **Reliability** | Auto-save every 5 sec, crash recovery, window/panel geometry persistence, single-file SQLite database storage |
 
@@ -33,9 +34,9 @@ Built with a **mixin-composition architecture**: the entire backend is pure Pyth
 | **GUI Framework** | DearPyGui 1.11+ | Immediate-mode vector renderer, low-level widget control |
 | **Discord Integration** | discord.py 2.3+ | Bot client for posting, OAuth2 for user login |
 | **Data Storage** | SQLite3 (Built-in) | Single-file local database (`lineup_builder.db`) |
-| **Image Processing** | Pillow 10+ | Load images for embed attachments |
+| **Image Processing** | Pillow 10+ | Load images for embed attachments and UI avatars |
 | **File Watching** | watchdog 3.0+ | Auto-restart dev server on code changes |
-| **HTTP Client** | httpx (optional) | REST calls to backend API |
+| **HTTP Client** | urllib (built-in) | REST calls for OAuth2 and Cloud Sync |
 
 ---
 
@@ -112,10 +113,11 @@ desktop/
 │           ├── confirm_dialog.py    # Reusable confirmation modal
 │           ├── date_time_picker.py  # Calendar + time picker modal
 │           ├── discord.py           # Discord bot connection, channel picker
+│           ├── discord_schedule.py  # Pending and scheduled post interfaces
 │           ├── init.py              # UISetupMixin: full window/panel layout
 │           ├── interactions.py      # Right-click menus, context handling
 │           ├── layout.py            # Panel manager, flex layouts
-│           ├── preview.py           # Output preview panel
+│           ├── preview.py           # Visual output preview panel (Discord mock)
 │           ├── slot_ui.py           # DPGVar, DPGBoolVar, SlotState, slot row builder
 │           ├── tabs.py              # Tab switching, rendering
 │           ├── toast.py             # Toast notification helper
@@ -157,11 +159,18 @@ desktop/
 
 ## Features in Detail
 
+### Authentication & Cloud Sync
+
+**Local vs. Cloud Mode**
+- By default, the app runs in **Local Mode**, securely saving all library and event data to your local SQLite database.
+- Connect your Discord account via the integrated OAuth2 login to unlock **Cloud Sync**.
+- In Cloud Mode, your DJ library, genres, and saved events automatically sync to the backend API, enabling multi-device access and server-side persistence.
+
 ### Event Creation & Orchestration
 
 **Smart Header**
 - Set event title and volume number
-- Volume auto-increments when saving a new event
+- Volume auto-increments when duplicating a saved event
 - Persistent favorite titles for quick access
 
 **Date & Time Picker**
@@ -180,7 +189,7 @@ desktop/
 **Genre Library**
 - Global persistent genre list (shared across all events)
 - Toggle genres on/off per event for smart filtering
-- Add new genres on-the-fly; auto-saved to YAML
+- Add new genres on-the-fly; auto-saved to SQLite/Cloud
 - Genre tags appear in output and Discord embeds
 
 ### DJ Roster & Lineup Management
@@ -190,7 +199,6 @@ desktop/
 - Stream links: support VRCDN (auto-convert between Quest/PC), Twitch, YouTube, SoundCloud, Kick, custom URLs
 - **Exact Link Mode** — per-DJ toggle to skip VRCDN conversion and pass URL as-is
 - Bulk link import from formatted text
-- Profile images load in roster cards
 
 **Drag-and-Drop Slots**
 - Drag DJ from roster directly into a lineup slot
@@ -202,21 +210,23 @@ desktop/
 - Duration presets: 15 to 120 minutes (configurable)
 - Apply master duration to all open slots at once
 - Real-time time label computation (HH:MM based on event start + cumulative durations)
+- Fast autocomplete search field for instantly typing a DJ's name
 - Support for "Open Deck" placeholder slots
 
 **Events History**
-- Save current lineup with a name (persisted to YAML)
+- Save current lineup with a name (persisted to SQLite/Cloud)
 - Load past event → restores all slots and settings
-- Duplicate event → copy with new name
+- Duplicate event → copy with new name, auto-increments the volume, shifts date exactly 1 week ahead
 - Delete event → permanent removal with confirmation
 - Events sortable by date
 
 ### Discord Bot Integration
 
 **Bot Connection**
-- Connect Discord bot directly from the app
+- Connect your own custom Discord bot directly from the app
 - Display current bot status and auto-reconnect on disconnect
 - Embedded token refresh UI
+- **Note:** Ensure **Message Content Intent** is enabled for your bot in the Discord Developer Portal.
 
 **Rich Embed Posting**
 - Post lineups immediately as Discord embeds
@@ -224,17 +234,18 @@ desktop/
 - DJ names bold, genre badges, computed slot times with timezone
 - Embed color matches active theme accent
 - Optional embed image (from URL or local file)
+- Integrated role ping drop-down menu
 
 **Channel Picker**
 - Dropdown list of your Discord server's text channels
-- Bot must have send permissions in selected channel
+- Bot must have `67584` permissions (Send Messages, Embed Links) in selected channel
 - Channel validation before posting
 
 **Scheduled Posting**
 - Schedule posts for future delivery (specify date/time)
-- Posts persist in `settings.json` across app restarts
-- Background scheduler checks every ~100ms and fires due posts
-- Resend capability for previously posted lineups
+- Posts persist in your settings across app restarts
+- Background scheduler checks periodically and fires due posts
+- **Important Note:** The Lineup Builder application **must be running** at the scheduled time for the post to be delivered!
 
 ### Social Links
 
@@ -242,14 +253,15 @@ desktop/
 - Support for: Timeline, VRCPop, X (Twitter), Instagram, Discord, VRC Group
 - Add/edit/remove links per event
 - Links appear formatted at bottom of output and Discord embeds
-- **Persistent Links** — toggle to auto-carry Discord & VRC Group links across all events
+- **Persistent Links** — toggle to auto-carry Discord & VRC Group links across all events automatically
 
 ### Multi-Format Output
 
-Real-time side-by-side previews for all output formats:
+Real-time previews for all output formats:
 
 | Format | Style | Link Conversion | Use Case |
 |--------|-------|---|---|
+| **Visual** | Rich UI Mockup | N/A | Accurate visual preview of the Discord Markdown formatting and attached image |
 | **Discord** | Markdown embeds | None (pass-through) | Posting to Discord |
 | **Local** | Plain text, HH:MM times | None (pass-through) | Local printing, archives |
 | **Quest** | HLS m3u8 links | VRCDN → `https://stream.vrcdn.live/live/{key}.live.ts` | VRChat Quest clients |
@@ -265,18 +277,14 @@ Real-time side-by-side previews for all output formats:
 - Applies globally to all popups and dialogs
 
 **Crash Recovery**
-- Auto-save every 5 seconds to `auto_save.json`
+- Auto-save every 5 seconds to internal state memory
 - On app launch, detect previous crash and offer recovery
-- Save recovers full event state (all slots, settings) and restores to editor
+- Save recovers full event state (all slots, settings, text inputs) and restores to editor
 
 **Window & Panel Persistence**
 - Remembers window size, position between sessions
 - Remembers left/right panel split position (drag handle)
 - Auto-layout responsive to small windows (800×600 minimum)
-
-**Resizable Panels**
-- Left and right panel widths adjustable via drag handle
-- Geometry persisted to `window_state.json`
 
 ---
 
@@ -292,7 +300,7 @@ Real-time side-by-side previews for all output formats:
 | **Right-click** on any input | Copy/paste context menu (auto-added) |
 | **Drag slot handle** | Reorder slots; times auto-compute |
 | **Drag DJ card→slot** | Add DJ to slot with confirmation |
-| **Drag to trash icon** | Delete slot (with visual feedback) |
+| **Type in Slot Name** | Auto-complete filters matching roster DJs |
 
 ---
 
@@ -312,6 +320,15 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1        # Windows PowerShell
 # or: source .venv/bin/activate   # macOS/Linux
 pip install -r requirements.txt
+```
+
+### Configuration via `.env` (Optional)
+
+You can pre-populate your Discord credentials by placing a `.env` file in the application's runtime data directory (the root of the repo during development, or next to the executable if compiled):
+
+```ini
+DISCORD_BOT_TOKEN=your_bot_token_here
+DISCORD_CLIENT_ID=your_client_id_here
 ```
 
 ### Run
@@ -398,11 +415,6 @@ User sees updated preview
 - `publish(event, data)` — Broadcast to all subscribers
 - No coupling between modules; all go through the bus
 
-**Model publishes:**
-- `"model_changed"` — Any state mutation (slot add/edit, title change, etc.)
-- `"genres_changed"` — Roster genre list updated
-- `"settings_changed"` — Theme or UI preference changed
-
 ---
 
 ## Debounce & Performance
@@ -414,9 +426,8 @@ Heavy operations are debounced to prevent UI lag:
 | `_schedule_update()` | 150 ms | Refresh output preview. Coalesces rapid model changes. |
 | `_schedule_roster_refresh()` | 120 ms | Redraw DJ roster panel after bulk import or genre filter. |
 | `_schedule_genre_refresh()` | 120 ms | Redraw genre tag list after add/delete. |
-| `_schedule_save_library()` | 500 ms | Persist DJ/genre library to YAML. Avoids thrashing disk. |
-| `_schedule_auto_save()` | 5000 ms | Write crash-recovery state to `auto_save.json`. |
-| `_schedule_auto_event_save()` | 1500 ms | Write current event snapshot to `auto_save.json` for recovery. |
+| `_schedule_save_library()` | 500 ms | Persist DJ/genre library to SQLite/Cloud. Avoids thrashing DB/API. |
+| `_schedule_auto_save()` | 5000 ms | Write crash-recovery state to key-value storage. |
 
 All timer work goes through `DebounceMixin` and a work queue (`self._work_queue`). The main loop calls `process_queue()` each frame to drain pending work on the UI thread.
 
@@ -434,10 +445,6 @@ All timer work goes through `DebounceMixin` and a work queue (`self._work_queue`
 - `LineupModel` — mutable runtime state with change notification
 - `SlotData`, `DJInfo` — plain dataclasses
 - `EventSnapshot` — immutable snapshot for output generation
-- Every setter publishes `"model_changed"`
-
-**models/types.py**
-- Type definitions, enums, constants
 
 **output/output_generator.py**
 - Pure stateless functions: `generate(snapshot)`, `compute_slot_times(snapshot)`, `vrcdn_convert(link, fmt)`
@@ -455,12 +462,10 @@ All timer work goes through `DebounceMixin` and a work queue (`self._work_queue`
 
 **data_manager.py**
 - `DataMixin` — Bridges the UI with the `Database`
-- Handles local SQLite reads/writes and background cloud synchronization
+- Handles local SQLite reads/writes and background cloud synchronization via threading
 
 **debounce.py**
 - `DebounceMixin` — timer helpers + work queue
-- `_schedule_*()` methods with configurable delays
-- `process_queue()` — drain work queue each frame
 
 **services/discord_service.py**
 - `DiscordService` — bot lifecycle, embed posting
@@ -474,15 +479,12 @@ All timer work goes through `DebounceMixin` and a work queue (`self._work_queue`
 ### Frontend Modules (DearPyGui widgets only)
 
 **app.py**
-- `App` class — inherits all 11 mixins
+- `App` class — inherits all 13 mixins
 - Owns DPG lifecycle: create context → create viewport → setup → show → main loop
-- Properties for data file paths (library, events, settings, auto_save)
 
 **ui/init.py (UISetupMixin)**
 - `UISetupMixin` — Full window layout
 - Create viewport, left/right panels, tabs, all widgets
-- Handle scroll/arrow key global events
-- ~400-500 lines organizing the entire UI
 
 **ui/slot_ui.py**
 - `DPGVar`, `DPGBoolVar` — wrappers around `dpg.get_value()` / `dpg.set_value()`
@@ -496,64 +498,15 @@ All timer work goes through `DebounceMixin` and a work queue (`self._work_queue`
 **styling/theme.py**
 - 50+ hex color constants, semantic naming
 - No hardcoded colors in widget code
-- `hex_to_dpg()` converter for DearPyGui
-- Reusable style dicts: `ENTRY`, `COMBO`, `BTN_PRIMARY`, `CARD`, etc.
+- Reusable style dicts for unified aesthetics
 
 **styling/fonts.py**
 - Material Symbols icon mappings
 - `styled_text()` helper for semantic typography
-- Icon, HEADER, LABEL, BODY, MUTED, ERROR styles
 
 **ui/widgets.py**
 - Themed widget factory functions
-- `add_primary_button()`, `add_danger_button()`, `add_styled_input()`, etc.
-- All apply correct colors & spacing automatically
-
----
-
-## Development Guidelines
-
-### Code Style & Conventions
-
-- **Type hints** — Use on public API functions; optional for private/mixin methods
-- **Docstrings** — Module and class-level (triple-quoted)
-- **Naming** — CamelCase for classes, snake_case for functions/variables, `_leading_underscore` for private
-- **Widget tags** — Lowercase with underscores: `"event_title_input"`, `"slot_row_{id}"`
-- **Backend rule** — NO DearPyGui imports in `src/backend/`; separate GUI concerns from business logic
-- **Theme colors** — Always use `hex_to_dpg(TOKEN)` from `styling/theme.py`, never hardcode hex
-
-### Adding a New Feature
-
-1. **Add model state** to `LineupModel` if needed
-2. **Create a mixin** in `src/frontend/mixins/` (or extend existing)
-3. **Build UI** in mixin callbacks using themed widgets
-4. **Subscribe to EventBus** for reactive updates
-5. **Use debounce** for heavy operations (`_schedule_*()`)
-6. **Test backend logic** in `tests/` against pure functions (no GUI)
-
-### Testing Backend
-
-```python
-# Example: test_output_generator.py
-from src.backend.output.output_generator import OutputGenerator
-from src.backend.models.types import EventSnapshot, SlotData
-
-def test_compute_slot_times():
-    snap = EventSnapshot(
-        timestamp="2026-03-16 20:00",
-        slots=[SlotData("DJ A", "", 60), SlotData("DJ B", "", 30)],
-    )
-    times = OutputGenerator.compute_slot_times(snap)
-    assert times == ["20:00", "21:00"]
-```
-
-### Performance Tips
-
-- Don't call `update_output()` directly — use `_schedule_update()` to debounce
-- Avoid nested grid/table rebuilds; rebuild only changed sections
-- Cache `dpg.get_value()` results if called multiple times in one function
-- Use `dpg.configure()` for batch updates on multiple widgets
-- Profile with `cProfile` if you suspect hot loops
+- `add_primary_button()`, `add_danger_button()`, `add_styled_combo()`, etc.
 
 ---
 
@@ -562,9 +515,13 @@ def test_compute_slot_times():
 ### Issue: App won't start — "No module named dearpygui"
 **Solution:** Ensure virtual environment is activated and `pip install -r requirements.txt` ran successfully. Try: `pip install dearpygui --upgrade`
 
-### Issue: Discord bot won't connect
-**Cause:** Invalid token or bot not added to your Discord server  
-**Solution:** Verify token in [Developer Portal](https://discord.com/developers/applications). Regenerate if needed. Ensure bot has "Send Messages" and "Embed Links" permissions.
+### Issue: Discord bot won't connect / errors on posting
+**Cause:** Invalid token, bot missing permissions, or Gateway Intents disabled.  
+**Solution:** Verify your token in the [Discord Developer Portal](https://discord.com/developers/applications). Make sure your bot is invited with `67584` permissions (Send Messages, Embed Links). **Critically, ensure "Message Content Intent" is toggled ON in the Developer Portal.**
+
+### Issue: Scheduled posts aren't appearing
+**Cause:** The Lineup Builder app was closed.  
+**Solution:** The internal scheduler runs on the application's clock. The app must remain open for the bot to post scheduled lineups. 
 
 ### Issue: Window too small, widgets cut off
 **Cause:** Desktop too small or window minimized  
@@ -577,14 +534,6 @@ def test_compute_slot_times():
 ### Issue: Theme doesn't apply to popups/modals
 **Cause:** Popup created before theme bound  
 **Solution:** All modals should be created *after* `apply_theme()` in `App.__init__()`. Global theme inheritance is automatic.
-
-### Issue: Auto-save not restoring
-**Cause:** Transient auto-save data missing from database.  
-**Solution:** This typically only happens on a clean install or if the database was manually cleared. Non-recoverable data is still safely stored in your saved events.
-
-### Issue: PyInstaller build fails
-**Cause:** Missing hidden imports or DearPyGui not properly detected  
-**Solution:** Ensure `lineup_builder.spec` includes DearPyGui in `hiddenimports`. Try: `pip install --upgrade dearpygui pyinstaller`
 
 ### Issue: Database locked error
 **Cause:** Multiple instances of the app trying to write to `lineup_builder.db` simultaneously.  
@@ -671,9 +620,8 @@ Themes are defined as dictionaries of hex color tokens and applied by `SettingsM
 ## Output Formats
 
 `OutputGenerator.generate(snapshot)` is a pure static method — no GUI, no side effects.
-
 ### Discord
-```
+```markdown
 # Event Title VOL.3
 # <t:1234567890:F> (<t:1234567890:R>)
 ## House // Techno
@@ -683,7 +631,7 @@ Themes are defined as dictionaries of hex color tokens and applied by `SettingsM
 ```
 
 ### Local (Plain Text)
-```
+```text
 Event Title VOL.3
 2025-06-01 @ 20:00 (PST)
 House // Techno
@@ -693,7 +641,7 @@ LINEUP
 ```
 
 ### Quest / PC (Stream Links)
-```
+```text
 https://stream.vrcdn.live/live/{key}.live.ts   ← Quest (HLS)
 rtspt://stream.vrcdn.live/live/{key}           ← PC (RTSP)
 ```

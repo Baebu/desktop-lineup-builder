@@ -12,8 +12,6 @@ from ..ui.toast import show_toast
 class EventsMixin:
     """Manages saved event lineups: save, load, delete, duplicate, and UI refresh."""
     
-    _saved_events_drawer_open = False
-
     def _get_full_title(self, title: str, vol: str) -> str:
         vol_prefix = getattr(self, "settings", {}).get("vol_prefix", " VOL.")
         return f"{title}{vol_prefix}{vol}" if str(vol).strip() else title
@@ -430,24 +428,6 @@ class EventsMixin:
         else:
             _do_dupe()
 
-    def _toggle_saved_events_drawer(self):
-        """Toggle the saved events drawer open/closed."""
-        self._saved_events_drawer_open = not self._saved_events_drawer_open
-        self._section_collapsed["saved_events"] = not self._saved_events_drawer_open
-        show = self._saved_events_drawer_open
-        # Toggle both the table row and the inner drawer child
-        if dpg.does_item_exist("saved_events_drawer_row"):
-            dpg.configure_item("saved_events_drawer_row", show=show)
-        if dpg.does_item_exist("saved_events_drawer"):
-            dpg.configure_item("saved_events_drawer", show=show)
-        # Update button icon
-        btn_tag = "saved_events_btn"
-        icon = "\u25bc" if show else "\u25ba"
-        if dpg.does_item_exist(btn_tag):
-            dpg.set_item_label(btn_tag, f"  {icon}  SAVED EVENTS")
-        if show:
-            self.refresh_saved_events_ui()
-
     def refresh_saved_events_ui(self):
         if not dpg.does_item_exist("saved_events_drawer_content"):
             return
@@ -466,7 +446,7 @@ class EventsMixin:
 
             # Matches the DJ roster card look (1x1 table for border)
             with dpg.group(parent="saved_events_drawer_content"):
-                dpg.add_spacer(height=4)
+                dpg.add_spacer(height=2)  # Tighter spacing between cards
                 with dpg.table(header_row=False, borders_innerH=False, borders_innerV=False,
                                borders_outerH=True, borders_outerV=True, pad_outerX=True, width=-6):
                     dpg.add_table_column()
@@ -481,15 +461,13 @@ class EventsMixin:
                                     styled_text(f"{timestamp}  |  {slots_count} slots", MUTED)
                                 with dpg.group(horizontal=True):
                                     def _load(s, a, u):
-                                        if dpg.does_item_exist("saved_events_drawer"):
-                                            dpg.configure_item("saved_events_drawer", show=False)
-                                        self._saved_events_drawer_open = False
+                                        if not self._section_collapsed.get("saved_events", True):
+                                            self._toggle_section("saved_events")
                                         self.load_event_lineup(u)
 
                                     def _dupe(s, a, u):
-                                        if dpg.does_item_exist("saved_events_drawer"):
-                                            dpg.configure_item("saved_events_drawer", show=False)
-                                        self._saved_events_drawer_open = False
+                                        if not self._section_collapsed.get("saved_events", True):
+                                            self._toggle_section("saved_events")
                                         self.duplicate_event_lineup(u)
 
                                     add_icon_button(Icon.DOWNLOAD, width=28, height=20, user_data=ev, callback=_load)

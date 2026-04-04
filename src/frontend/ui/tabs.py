@@ -54,50 +54,17 @@ class TabsBuilderMixin:
 
     def _build_saved_events_section(self):
         """Build the saved events button and drawer wrapped in a bordered container (matching section style)."""
-        with dpg.table(
-            header_row=False,
-            borders_outerH=True,
-            borders_outerV=True,
-            borders_innerH=False,
-            borders_innerV=False,
-            pad_outerX=False,
-            width=-6,
-        ):
-            dpg.add_table_column()
-            # Row 1: The button (always visible)
-            with dpg.table_row():
-                with dpg.theme() as header_row_theme:
-                    with dpg.theme_component(dpg.mvTable):
-                        dpg.add_theme_style(dpg.mvStyleVar_CellPadding, 0, 0)
-                dpg.bind_item_theme(dpg.last_item(), header_row_theme)
-
-                collapsed = self._section_collapsed.get("saved_events", True)
-                icon = "\u25ba" if collapsed else "\u25bc"
-                saved_events_btn = dpg.add_button(
-                    label=f"  {icon}  SAVED EVENTS",
-                    tag="saved_events_btn",
-                    width=-1,
-                    height=28,
-                    callback=lambda: self._toggle_saved_events_drawer()
-                )
-                dpg.bind_item_theme(saved_events_btn, "section_btn_theme")
-
-            # Row 2: The drawer content (toggled)
-            with dpg.table_row(tag="saved_events_drawer_row", show=False):
-                with dpg.child_window(
-                    tag="saved_events_drawer",
-                    height=200,
-                    border=False,
-                    show=False,
-                ):
-                    with dpg.child_window(
-                        tag="saved_events_drawer_content",
-                        height=-1,
-                        border=False,
-                        autosize_x=True,
-                    ):
-                        pass
-        dpg.add_spacer(height=4)
+        with section(self, "saved_events", "SAVED EVENTS", default_open=False):
+            with dpg.child_window(
+                tag="saved_events_drawer_content",
+                height=140,
+                border=False,
+                autosize_x=True,
+            ):
+                pass
+        
+        # Populate it initially so data is ready when opened
+        self.refresh_saved_events_ui()
 
     def _build_details_section(self):
         # Saved Events section (above the DETAILS section)
@@ -125,7 +92,7 @@ class TabsBuilderMixin:
                             dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 999)
                     dpg.bind_item_theme("event_vol_input", _pill_theme)
             
-            dpg.add_spacer(height=4)
+            dpg.add_spacer(height=2)
 
             with dpg.group():
                 styled_text("START", LABEL)
@@ -148,10 +115,10 @@ class TabsBuilderMixin:
                 on_enter=True,
                 callback=lambda s, a, u=None: self.add_genre_from_entry(),
             )
-            dpg.add_spacer(height=4)
+            dpg.add_spacer(height=2)
             add_primary_button("Edit Genres", width=-1, callback=self._toggle_genre_settings_drawer)
 
-            with dpg.child_window(tag="genre_settings_drawer", height=200, border=True, show=False):
+            with dpg.child_window(tag="genre_settings_drawer", height=140, border=True, show=False):
                 self._build_genre_settings_drawer()
             
             self.genre_entry_var._tag = "genre_entry"
@@ -163,8 +130,8 @@ class TabsBuilderMixin:
                 )
             dpg.bind_item_handler_registry("genre_entry", "genre_entry_hr")
             
-            dpg.add_spacer(height=4)
-            with dpg.child_window(tag="genre_tags_frame", height=90, border=False, autosize_x=True):
+            dpg.add_spacer(height=2)
+            with dpg.child_window(tag="genre_tags_frame", height=60, border=False, autosize_x=True):
                 pass
 
     def _build_links_section(self):
@@ -180,7 +147,6 @@ class TabsBuilderMixin:
                     user_data=label,
                     callback=lambda s, a, u: self._on_social_link_changed(u),
                 )
-            dpg.add_spacer(height=4)
 
             # ── Socials Group ──
             styled_text("SOCIALS", MUTED)
@@ -193,7 +159,6 @@ class TabsBuilderMixin:
                     user_data=label,
                     callback=lambda s, a, u: self._on_social_link_changed(u),
                 )
-            dpg.add_spacer(height=4)
 
             # ── Club Group ──
             styled_text("CLUB", MUTED)
@@ -232,22 +197,22 @@ class TabsBuilderMixin:
                     dpg.add_button(label="Disconnect", width=-1, callback=self._disconnect_discord_bot)
 
             add_primary_button("Configure", width=-1, callback=self._toggle_discord_settings_drawer)
-            with dpg.child_window(tag="discord_settings_drawer", height=220, border=True, show=False):
+            with dpg.child_window(tag="discord_settings_drawer", height=150, border=True, show=False):
                 self._build_discord_settings_drawer()
 
-            dpg.add_spacer(height=8)
+            dpg.add_spacer(height=2)
             styled_text("Server", LABEL)
             dpg.add_combo(tag="discord_ping_server", items=[], width=-1, callback=self._on_server_selected)
 
-            dpg.add_spacer(height=8)
+            dpg.add_spacer(height=2)
             styled_text("Channel", LABEL)
             dpg.add_combo(tag="discord_channel", items=[], width=-1, callback=self._save_discord_channel)
             
-            dpg.add_spacer(height=8)
+            dpg.add_spacer(height=2)
             styled_text("Ping Role", LABEL)
             dpg.add_combo(tag="discord_ping_roles", items=[], width=-1, callback=self._save_discord_ping_roles)
 
-            dpg.add_spacer(height=8)
+            dpg.add_spacer(height=4)
             add_primary_button("Post to Discord", width=-1, callback=self._confirm_post_to_discord)
 
     def _build_dj_roster_tab(self):

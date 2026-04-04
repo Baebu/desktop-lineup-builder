@@ -121,16 +121,16 @@ def section(app, section_id: str, label: str, default_open: bool = True):
     with dpg.table_row(tag=content_tag, show=not collapsed):
         with dpg.group():
             # Reduced breathing room for tighter vertical density
-            dpg.add_spacer(height=2)
+            dpg.add_spacer(height=1)
             with dpg.group(horizontal=True):
-                dpg.add_spacer(width=8)
+                dpg.add_spacer(width=4)
                 with dpg.group():
                     try:
                         yield content_tag
                     finally:
-                        dpg.add_spacer(height=4)
+                        dpg.add_spacer(height=2)
                 dpg.add_spacer(width=4)
 
     # Pop the table
     dpg.pop_container_stack()
-    dpg.add_spacer(height=4) # Space between drawers
+    dpg.add_spacer(height=2) # Tighter space between drawers
