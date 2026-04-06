@@ -133,7 +133,7 @@ def build_add_slot_row(app, parent_tag: str):
         with dpg.group(horizontal=True):
             add_primary_button(
                 "+ Add DJ Slot",
-                width=-1,
+                width=-1, height=24,
                 callback=lambda: app.add_slot(),
             )
 
@@ -207,42 +207,12 @@ def build_slot_row(slot: SlotState, app, parent_tag: str):
                     # Temporarily apply ERROR so it has a color before _update_slot_info applies the theme
                     styled_text("LINK", ERROR, tag=f"slot_info_{sid}")
                     
-                    add_icon_button(Icon.VR, width=28, height=20, user_data=(slot, app, "quest"), callback=_copy_slot_link, tag=f"slot_quest_{sid}", show=False)
-                    add_icon_button(Icon.COMPUTER, width=28, height=20, user_data=(slot, app, "pc"), callback=_copy_slot_link, tag=f"slot_pc_{sid}", show=False)
+                    add_icon_button(Icon.VR, width=28, height=24, user_data=(slot, app, "quest"), callback=_copy_slot_link, tag=f"slot_quest_{sid}", show=False)
+                    add_icon_button(Icon.COMPUTER, width=28, height=24, user_data=(slot, app, "pc"), callback=_copy_slot_link, tag=f"slot_pc_{sid}", show=False)
                     
-                    # Edit DJ button with inline callback
-                    def _make_edit_callback(slot_obj, app_obj):
-                        def _on_edit_click(sender, app_data, user_data):
-                            try:
-                                name = slot_obj.name_var.get().strip() if slot_obj.name_var else ""
-                                if not name:
-                                    return
-                                # Find DJ in roster
-                                found_idx = None
-                                for idx, dj in enumerate(app_obj.saved_djs):
-                                    if dj.get("name", "").lower() == name.lower():
-                                        found_idx = idx
-                                        break
-                                if found_idx is not None:
-                                    app_obj._open_dj_edit_window(app_obj.saved_djs[found_idx], found_idx)
-                                else:
-                                    # Create new DJ
-                                    app_obj.saved_djs.append({"name": name, "stream": "", "exact_link": False})
-                                    app_obj._save_library()
-                                    app_obj.refresh_dj_roster_ui()
-                                    app_obj._open_dj_edit_window(app_obj.saved_djs[-1], len(app_obj.saved_djs) - 1)
-                            except Exception as e:
-                                print(f"[slot_ui] Error editing DJ: {e}")
-                        return _on_edit_click
-                    
-                    _edit_btn = add_icon_button(
-                        Icon.EDIT,
-                        user_data=slot,
-                        callback=_make_edit_callback(slot, app),
-                    )
-
                     _del_btn = add_icon_button(
                         Icon.CLOSE, is_danger=True,
+                        width=28, height=24,
                         user_data=slot,
                         callback=lambda s, a, u: app.delete_slot(u),
                     )

@@ -6,7 +6,7 @@ from .widgets import add_icon_button, add_primary_button
 
 class LayoutBuilderMixin:
 
-    _LEFT_DEFAULT = 350
+    _LEFT_DEFAULT = 359
     _DRAWER_HEIGHT = 134
     _AUTH_BTN_HEIGHT = 54
     _AUTH_BTN_INNER  = 46
@@ -79,16 +79,7 @@ class LayoutBuilderMixin:
                               border=True, autosize_x=True, no_scrollbar=True,
                               show=False):
             self._build_account_drawer()
-
-        # ── Auth card toggle button ───────────────────────────────────
-        _btn_h = self._AUTH_BTN_INNER
-        _av_sz = 24
-        dpg.add_button(tag="auth_card_btn", label="      Local", width=-1,
-                       height=_btn_h,
-                       callback=lambda: self._toggle_account_drawer())
-        dpg.add_image("auth_avatar_tex", tag="auth_card_avatar",
-                      width=_av_sz, height=_av_sz, show=False)
-
+            
     def _build_right_panel(self):
         # ── Timeslots (resizable container) ───────────────────────────────
         styled_text("   TIMESLOTS  ", HEADER)
