@@ -269,7 +269,7 @@ class DiscordScheduleBuilderMixin:
             "vol": snap.vol,
             "timestamp": snap.timestamp,
             "genres": list(snap.genres),
-            "slots":[{"name": s.name, "genre": s.genre, "duration": s.duration}
+            "slots":[{"name": s.name, "genre": s.genre, "club": s.club, "duration": s.duration}
                       for s in snap.slots],
             "names_only": snap.names_only,
             "output_format": snap.output_format,
@@ -292,7 +292,7 @@ class DiscordScheduleBuilderMixin:
             vol=d.get("vol", ""),
             timestamp=d.get("timestamp", ""),
             genres=d.get("genres", []),
-            slots=[SlotData(s.get("name", ""), s.get("genre", ""), s.get("duration", 60))
+            slots=[SlotData(s.get("name", ""), s.get("genre", ""), s.get("club", ""), s.get("duration", 60))
                    for s in d.get("slots", [])],
             names_only=d.get("names_only", False),
             output_format=d.get("output_format", "discord"),

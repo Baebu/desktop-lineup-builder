@@ -33,6 +33,7 @@ class OutputMixin:
             slots.append(SlotData(
                 name=s.name_var.get().strip(),
                 genre=s.genre_var.get().strip(),
+                club=s.club_var.get().strip(),
                 duration=dur,
             ))
 

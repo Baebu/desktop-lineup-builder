@@ -24,6 +24,7 @@ class SlotData:
     """One performer slot — pure data, no widgets."""
     name: str = ""
     genre: str = ""
+    club: str = ""
     duration: int = 60
 
 

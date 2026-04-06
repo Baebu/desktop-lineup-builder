@@ -187,7 +187,7 @@ def build_slot_row(slot: SlotState, app, parent_tag: str):
                         default_value=slot.name_var.get(),
                         tag=f"slot_name_{sid}",
                         hint="DJ name...",
-                        width=90,
+                        width=100,
                         user_data=slot,
                         callback=lambda s, a, u: _on_name_input(u, a, app),
                     )
@@ -203,6 +203,26 @@ def build_slot_row(slot: SlotState, app, parent_tag: str):
                             callback=lambda s, a, u=slot: _maybe_add_dj_to_roster(u, app)
                         )
                     dpg.bind_item_handler_registry(f"slot_name_{sid}", hr_tag)
+                    
+                    dpg.add_input_text(
+                        default_value=slot.genre_var.get(),
+                        tag=f"slot_genre_{sid}",
+                        hint="Genre...",
+                        width=90,
+                        user_data=slot,
+                        callback=lambda s, a, u: (u.genre_var.set(a), app._schedule_update()),
+                    )
+                    slot.genre_var._tag = f"slot_genre_{sid}"
+                    
+                    dpg.add_input_text(
+                        default_value=slot.club_var.get(),
+                        tag=f"slot_club_{sid}",
+                        hint="Club...",
+                        width=90,
+                        user_data=slot,
+                        callback=lambda s, a, u: (u.club_var.set(a), app._schedule_update()),
+                    )
+                    slot.club_var._tag = f"slot_club_{sid}"
                     
                     # Temporarily apply ERROR so it has a color before _update_slot_info applies the theme
                     styled_text("LINK", ERROR, tag=f"slot_info_{sid}")

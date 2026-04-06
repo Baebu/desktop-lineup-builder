@@ -66,7 +66,7 @@ class LineupModel:
             vol=self.vol,
             timestamp=self.timestamp,
             genres=list(self.genres),
-            slots=[SlotData(s.name, s.genre, s.duration) for s in self.slots],
+            slots=[SlotData(s.name, s.genre, s.club, s.duration) for s in self.slots],
             names_only=self.names_only,
             output_format=self.output_format,
             saved_djs=[DJInfo(d.name, d.stream, d.exact_link) for d in self.saved_djs],
@@ -85,6 +85,7 @@ class LineupModel:
             SlotData(
                 name=s.get("name", ""),
                 genre=s.get("genre", ""),
+                club=s.get("club", ""),
                 duration=int(s.get("duration", 60)),
             )
             for s in data.get("slots", [])
@@ -100,7 +101,7 @@ class LineupModel:
             "genres": list(self.genres),
             "names_only": self.names_only,
             "slots": [
-                {"name": s.name, "genre": s.genre, "duration": str(s.duration)}
+                {"name": s.name, "genre": s.genre, "club": s.club, "duration": str(s.duration)}
                 for s in self.slots
             ],
         }

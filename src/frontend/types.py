@@ -64,11 +64,12 @@ class SlotState:
 
     _counter = 0
 
-    def __init__(self, name="", genre="", duration=60):
+    def __init__(self, name="", genre="", club="", duration=60):
         SlotState._counter += 1
         self._id = SlotState._counter
         self.name_var     = DPGVar(default=name)
         self.genre_var    = DPGVar(default=genre)
+        self.club_var     = DPGVar(default=club)
         self.duration_var = DPGVar(default=str(duration))
         self.row_tag: str | None = None  # set by build_slot_row
 

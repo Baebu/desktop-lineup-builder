@@ -132,9 +132,9 @@ class ImportMixin:
             if m:
                 unix = int(m.group(1))
                 rest = re.sub(r'\*\*(.+?)\*\*', r'\1', m.group(2)).strip()
-                name, genre = self._extract_name_genre(rest)
+                name, genre, club = self._extract_name_genre(rest)
                 slot_times.append(unix)
-                parsed["slots"].append({"name": name, "genre": genre, "duration": "60"})
+                parsed["slots"].append({"name": name, "genre": genre, "club": club, "duration": "60"})
                 continue
 
             # ── Section header: "### LINEUP" ─────────────────────────────
@@ -158,7 +158,8 @@ class ImportMixin:
             # ── Names-only slot: plain text line inside LINEUP section ────
             if in_lineup and not re.match(r'^#+', line):
                 parsed["names_only"] = True
-                parsed["slots"].append({"name": line, "genre": "", "duration": "60"})
+                name, genre, club = self._extract_name_genre(line)
+                parsed["slots"].append({"name": name, "genre": genre, "club": club, "duration": "60"})
 
         self._compute_slot_durations(parsed["slots"], slot_times)
         return parsed if (parsed["title"] or parsed["slots"]) else None
@@ -200,15 +201,16 @@ class ImportMixin:
                 m = re.match(fr'^(\d{{1,2}}:\d{{2}})\s*(?:{dj_div_esc}|\|)?\s*(.+)$', line)
                 if m:
                     time_str = m.group(1)
-                    name, genre = self._extract_name_genre(m.group(2).strip())
+                    name, genre, club = self._extract_name_genre(m.group(2).strip())
                     unix = self._time_str_to_unix(time_str, parsed["timestamp"])
                     if unix is not None:
                         slot_times.append(unix)
-                    parsed["slots"].append({"name": name, "genre": genre, "duration": "60"})
+                    parsed["slots"].append({"name": name, "genre": genre, "club": club, "duration": "60"})
                     continue
                 # ── Names-only slot: any non-empty line inside LINEUP ─────
                 parsed["names_only"] = True
-                parsed["slots"].append({"name": line, "genre": "", "duration": "60"})
+                name, genre, club = self._extract_name_genre(line)
+                parsed["slots"].append({"name": name, "genre": genre, "club": club, "duration": "60"})
                 continue
 
             # ── Genre line: "Genre1 // Genre2" ───────────────────────────
@@ -267,24 +269,28 @@ class ImportMixin:
             parsed["title"] = candidate
 
     @staticmethod
-    def _extract_name_genre(rest: str) -> tuple[str, str]:
-        """Split the right-hand side of a slot line into (name, genre).
+    def _extract_name_genre(rest: str) -> tuple[str, str, str]:
+        """Split the right-hand side of a slot line into (name, genre, club).
 
         Handles:
-          ``Name (Genre)``  – parens
-          ``Name [Genre]``  – square brackets
-          ``Name - Genre``  – trailing dash / en-dash separator
-          ``Name``          – no genre
+          **Name** (Genre) `Club`
         """
         name = rest.strip()
         genre = ""
+        club = ""
+
+        # Extract club from trailing backticks if present
+        m = re.search(r'\s*`([^`]+)`\s*$', name)
+        if m:
+            club = m.group(1).strip()
+            name = name[: m.start()].strip()
 
         # (Genre) or [Genre] at end
         m = re.search(r'\s*[\(\[]([^\)\]]+)[\)\]]\s*$', name)
         if m:
             genre = m.group(1).strip()
             name = name[: m.start()].strip()
-            return name, genre
+            return name, genre, club
 
         # " - Genre" or " – Genre" trailing suffix
         m = re.search(r'\s+[-–]\s+(.+)$', name)
@@ -294,7 +300,7 @@ class ImportMixin:
                 genre = m.group(1).strip()
                 name = possible_name
 
-        return name, genre
+        return name, genre, club
 
     @staticmethod
     def _time_str_to_unix(time_str: str, timestamp_ctx: str) -> int | None:
@@ -367,6 +373,7 @@ class ImportMixin:
             self.add_slot(
                 slot_data.get("name", ""),
                 slot_data.get("genre", ""),
+                slot_data.get("club", ""),
                 dur,
                 refresh=False
             )

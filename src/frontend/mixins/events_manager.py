@@ -42,6 +42,7 @@ class EventsMixin:
             event_data["slots"].append({
                 "name": slot.name_var.get().strip(),
                 "genre": slot.genre_var.get().strip(),
+                "club": slot.club_var.get().strip(),
                 "duration": dur
             })
         return event_data
@@ -281,6 +282,7 @@ class EventsMixin:
                 self.add_slot(
                     slot_data.get("name", ""),
                     slot_data.get("genre", ""),
+                    slot_data.get("club", ""),
                     dur,
                     refresh=False
                 )

@@ -86,6 +86,7 @@ class Database:
                 position INTEGER NOT NULL DEFAULT 0,
                 name     TEXT    NOT NULL DEFAULT '',
                 genre    TEXT    NOT NULL DEFAULT '',
+                club     TEXT    NOT NULL DEFAULT '',
                 duration INTEGER NOT NULL DEFAULT 60,
                 FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
             );
@@ -97,6 +98,12 @@ class Database:
                 FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
             );
         """)
+        # Safely add the club column if it doesn't exist for legacy DB users
+        try:
+            conn.execute("ALTER TABLE event_slots ADD COLUMN club TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+            
         conn.commit()
 
     # ── Key-Value store (settings, window state, auto-save, etc.) ─────────
@@ -225,7 +232,7 @@ class Database:
             for er in event_rows:
                 eid = er["id"]
                 slot_rows = conn.execute(
-                    "SELECT name, genre, duration FROM event_slots "
+                    "SELECT name, genre, club, duration FROM event_slots "
                     "WHERE event_id = ? ORDER BY position", (eid,)
                 ).fetchall()
                 genre_rows = conn.execute(
@@ -246,7 +253,7 @@ class Database:
                     "discord_embed_image": er["discord_embed_image"],
                     "genres": [gr["genre"] for gr in genre_rows],
                     "slots": [
-                        {"name": sr["name"], "genre": sr["genre"],
+                        {"name": sr["name"], "genre": sr["genre"], "club": sr["club"],
                          "duration": sr["duration"]}
                         for sr in slot_rows
                     ],
@@ -295,9 +302,9 @@ class Database:
             conn.execute("DELETE FROM event_slots WHERE event_id = ?", (db_id,))
             for pos, slot in enumerate(event_data.get("slots", [])):
                 conn.execute(
-                    "INSERT INTO event_slots (event_id, position, name, genre, duration) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (db_id, pos, slot.get("name", ""), slot.get("genre", ""),
+                    "INSERT INTO event_slots (event_id, position, name, genre, club, duration) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (db_id, pos, slot.get("name", ""), slot.get("genre", ""), slot.get("club", ""),
                      int(slot.get("duration", 60))),
                 )
 

@@ -18,10 +18,10 @@ class SlotMixin:
                 pass
         return 60
 
-    def add_slot(self, name: str = "", genre: str = "", duration: int | None = None, index: int | None = None, refresh: bool = True):
+    def add_slot(self, name: str = "", genre: str = "", club: str = "", duration: int | None = None, index: int | None = None, refresh: bool = True):
         if duration is None:
             duration = self._last_slot_duration()
-        slot = SlotState(name, genre, duration)
+        slot = SlotState(name, genre, club, duration)
         
         if index is not None:
             self.slots.insert(index, slot)
@@ -68,7 +68,7 @@ class SlotMixin:
                 dur = int(s.duration_var.get())
             except ValueError:
                 dur = 60
-            self.add_slot(s.name_var.get(), s.genre_var.get(), dur)
+            self.add_slot(s.name_var.get(), s.genre_var.get(), s.club_var.get(), dur)
 
     def delete_slot(self, slot_state: SlotState):
         if slot_state in self.slots:

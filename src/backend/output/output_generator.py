@@ -123,8 +123,9 @@ class OutputGenerator:
                 lines.append(name)
             else:
                 genre_str = f" ({slot.genre})" if slot.genre else ""
+                club_str = f" `{slot.club}`" if slot.club else ""
                 ts = int(ptr.timestamp())
-                lines.append(f"<t:{ts}:t>{snap.time_dj_divider}**{name}**{genre_str}")
+                lines.append(f"<t:{ts}:t>{snap.time_dj_divider}**{name}**{genre_str}{club_str}")
 
             # Interleave stream link after each slot
             if slf and slot.name.strip():
@@ -186,7 +187,8 @@ class OutputGenerator:
                 lines.append(name)
             else:
                 genre_str = f" ({slot.genre})" if slot.genre else ""
-                lines.append(f"{ptr.strftime('%H:%M')}{snap.time_dj_divider}{name}{genre_str}")
+                club_str = f" `{slot.club}`" if slot.club else ""
+                lines.append(f"{ptr.strftime('%H:%M')}{snap.time_dj_divider}{name}{genre_str}{club_str}")
 
             # Interleave stream link after each slot
             if slf and slot.name.strip():
